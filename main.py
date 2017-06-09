@@ -30,6 +30,10 @@ for entry in os.listdir("input"):
     bookname = bookdata[2]
     print("Author=", authorname, " Title=", bookname)
 
+    # create working folder
+    os.makedirs("working/" + entry)
+    workingfolder = 'working/' + entry + '/'
+
     # get the list of files in some order
     rawfilelist = os.listdir("input/" + entry)
     rawfilelist.sort()
@@ -40,9 +44,10 @@ for entry in os.listdir("input"):
         print(rawfile)
 
         bitrate = "64k"
-        outputfilename = "outputfile%03d.aac" % filecounter
 
-        commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -c:a aac -b:a ' + bitrate + ' ' + outputfilename
+        outputfilename = workingfolder + "outputfile%03d.aac" % filecounter
+
+        commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -c:a aac -b:a ' + bitrate + ' "' + outputfilename + '"'
 
         args = shlex.split(commandline)
         p = subprocess.Popen(args)

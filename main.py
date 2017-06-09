@@ -47,6 +47,3 @@ for entry in os.listdir("input"):
         args = shlex.split(commandline)
         p = subprocess.Popen(args)
 
-        #subprocess.Popen()
-
-# ffmpeg -i "input/Isaac Asimov - Foundation Book 6 - Prelude to Foundation/Isaac Asimov, Prelude to Foundation (01 of 23).mp3" -c:a aac -b:a 64k Chapter01.aac

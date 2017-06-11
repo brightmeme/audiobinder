@@ -16,7 +16,6 @@ import subprocess
 import sys
 import time
 
-
 # find audiobooks to encode
 for entry in os.listdir("input"):
     # each item in this folder must be a folder containing a single audiobook
@@ -34,7 +33,7 @@ for entry in os.listdir("input"):
 
     # create working folder
     os.makedirs("working/" + entry)
-    workingfolder = 'working/' + entry + '/'
+    workingFolder = 'working/' + entry + '/'
 
     # get the list of files in some order
     rawfilelist = os.listdir("input/" + entry)
@@ -46,7 +45,6 @@ for entry in os.listdir("input"):
     for rawfile in rawfilelist:
         if rawfile.endswith('.mp3'):
             filecounter += 1
-            print(rawfile)
 
             # TODO fix to use appropriate bitrate
             ##################################################################
@@ -56,13 +54,12 @@ for entry in os.listdir("input"):
             # Mono       #  48 Kbps   #  48 Kbps   #  64 Kbps   #  80 Kbps   #
             ##################################################################
             # TODO determine input channels - stereo or mono?
-            input_channels = 2 # stereo
+            input_channels = 1  # mono
 
             # TODO determine input frequency in Hz
             input_freq = 44100
 
-
-            bitrate = "64k" # default - always overridden
+            bitrate = "64k"  # default - always overridden
             if input_channels > 1 and input_freq > 44100:
                 bitrate = "112k"
             elif input_freq > 44100:
@@ -80,9 +77,10 @@ for entry in os.listdir("input"):
             else:
                 bitrate = "48k"
 
-            outputFilename = workingfolder + "outputfile%03d.aac" % filecounter
+            outputFilename = workingFolder + "outputfile%03d.aac" % filecounter
 
-            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  ' + bitrate + ' "' + outputFilename + '"'
+            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  '
+            commandline += bitrate + ' "' + outputFilename + '"'
 
             args = shlex.split(commandline)
 
@@ -119,20 +117,24 @@ for entry in os.listdir("input"):
             break
 
     # Merge the aac files into a single m4a file
-    # - create mergelist for ffmpeg
-    mergelistFilename = workingfolder + "mergelist.txt"
-    mergelistFile = open(mergelistFilename, "w")
+    mergeCommandlineHead = 'ffmpeg -i "concat:'
+    mergeCommandlineBody = ""
+    mergeCommandlineTail = '" -c copy ' + '"' + workingFolder + entry + '.m4a"'
 
     fileMergeIterator = 0
     while fileMergeIterator < filecounter:
         fileMergeIterator += 1
-         # add this file to the merge list
-        toMergeFilename = workingfolder + "outputfile%03d.aac" % fileMergeIterator
-        mergelistFile.write("file '" + toMergeFilename + "'\n")
+        mergeCommandlineBody += workingFolder + "outputfile%03d.aac" % fileMergeIterator
+        if fileMergeIterator < filecounter:
+            mergeCommandlineBody += "|"
 
-    mergelistFile.close()
+    mergeCommand = mergeCommandlineHead + mergeCommandlineBody + mergeCommandlineTail
+    print(mergeCommand) # DEBUG
 
-    # - run merge command synchronously
+    args = shlex.split(mergeCommand)
+
+    # Now run the merge process for this book - results in m4a containing all aac file content
+    p = subprocess.Popen(args)
 
 
     # set metadata
@@ -146,8 +148,3 @@ for entry in os.listdir("input"):
     # move m4b to output folder
 
     # clear working folder
-
-
-
-
-

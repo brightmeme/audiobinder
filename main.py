@@ -13,6 +13,8 @@
 import os
 import shlex
 import subprocess
+import sys
+import time
 
 
 # find audiobooks to encode
@@ -39,16 +41,55 @@ for entry in os.listdir("input"):
     rawfilelist.sort()
 
     filecounter = 0
+    referenceToPopens = {}
+
     for rawfile in rawfilelist:
-        filecounter += 1
-        print(rawfile)
+        if rawfile.endswith('.mp3'):
+            filecounter += 1
+            print(rawfile)
 
-        bitrate = "64k"
+            # TODO fix
+            bitrate = "64k"
 
-        outputfilename = workingfolder + "outputfile%03d.aac" % filecounter
+            outputfilename = workingfolder + "outputfile%03d.aac" % filecounter
 
-        commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -c:a aac -b:a ' + bitrate + ' "' + outputfilename + '"'
+            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  ' + bitrate + ' "' + outputfilename + '"'
 
-        args = shlex.split(commandline)
-        p = subprocess.Popen(args)
+            args = shlex.split(commandline)
+
+            # launch the recode in the background..
+            p = subprocess.Popen(args)
+            referenceToPopens[filecounter] = p
+
+    # wait here until all encodes are completed
+    filesComplete = 0
+    while True:
+        # prevent thrashing
+        time.sleep(.5)
+        for key, value in referenceToPopens.items():
+            outputLine = "\rEncoding to aac. " + str(filesComplete) + "/" + str(filecounter) + " completed"
+            if value.poll() is None:
+                sys.stdout.write(outputLine)
+            else:
+                # delete item
+                del referenceToPopens[key]
+
+                # update counter
+                filesComplete += 1
+                outputLine = "\rEncoding to aac. " + str(filesComplete) + "/" + str(filecounter) + " completed"
+                break
+
+        # when all are complete, move to the next audiobook
+        if filesComplete >= filecounter:
+            break
+
+    # Merge the aac files into a single m4a file
+    
+
+    # set metadata
+
+    # rename to m4b
+
+
+
 

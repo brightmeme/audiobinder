@@ -48,12 +48,41 @@ for entry in os.listdir("input"):
             filecounter += 1
             print(rawfile)
 
-            # TODO fix
-            bitrate = "64k"
+            # TODO fix to use appropriate bitrate
+            ##################################################################
+            #            # <22.05 KHz # 22.05KHz   # 44.1 KHz   # >44.1KHz   #
+            ##################################################################
+            # Stereo     #  48 Kbps   #  64 Kbps   #  96 Kbps   # 112 Kbps   #
+            # Mono       #  48 Kbps   #  48 Kbps   #  64 Kbps   #  80 Kbps   #
+            ##################################################################
+            # TODO determine input channels - stereo or mono?
+            input_channels = 2 # stereo
 
-            outputfilename = workingfolder + "outputfile%03d.aac" % filecounter
+            # TODO determine input frequency in Hz
+            input_freq = 44100
 
-            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  ' + bitrate + ' "' + outputfilename + '"'
+
+            bitrate = "64k" # default - always overridden
+            if input_channels > 1 and input_freq > 44100:
+                bitrate = "112k"
+            elif input_freq > 44100:
+                bitrate = "80k"
+            elif input_channels > 1 and input_freq > 44000:
+                bitrate = "96k"
+            elif input_freq > 44000:
+                bitrate = "64k"
+            elif input_channels > 1 and input_freq > 22000:
+                bitrate = "64k"
+            elif input_freq > 22000:
+                bitrate = "48k"
+            elif input_channels > 1:
+                bitrate = "48k"
+            else:
+                bitrate = "48k"
+
+            outputFilename = workingfolder + "outputfile%03d.aac" % filecounter
+
+            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  ' + bitrate + ' "' + outputFilename + '"'
 
             args = shlex.split(commandline)
 
@@ -68,8 +97,10 @@ for entry in os.listdir("input"):
         time.sleep(.5)
         for key, value in referenceToPopens.items():
             outputLine = "\rEncoding to aac. " + str(filesComplete) + "/" + str(filecounter) + " completed"
+            sys.stdout.write(outputLine)
+
             if value.poll() is None:
-                sys.stdout.write(outputLine)
+                time.sleep(.1)
             else:
                 # delete item
                 del referenceToPopens[key]
@@ -77,18 +108,45 @@ for entry in os.listdir("input"):
                 # update counter
                 filesComplete += 1
                 outputLine = "\rEncoding to aac. " + str(filesComplete) + "/" + str(filecounter) + " completed"
+                sys.stdout.write(outputLine)
                 break
 
         # when all are complete, move to the next audiobook
         if filesComplete >= filecounter:
+            outputLine = "\rEncoding to aac. " + str(filesComplete) + "/" + str(filecounter) + " completed"
+            sys.stdout.write(outputLine)
+            sys.stdout.flush()
             break
 
     # Merge the aac files into a single m4a file
-    
+    # - create mergelist for ffmpeg
+    mergelistFilename = workingfolder + "mergelist.txt"
+    mergelistFile = open(mergelistFilename, "w")
+
+    fileMergeIterator = 0
+    while fileMergeIterator < filecounter:
+        fileMergeIterator += 1
+         # add this file to the merge list
+        toMergeFilename = workingfolder + "outputfile%03d.aac" % fileMergeIterator
+        mergelistFile.write("file '" + toMergeFilename + "'\n")
+
+    mergelistFile.close()
+
+    # - run merge command synchronously
+
 
     # set metadata
+    # - set author, book name
+    # - TODO set cover image
 
     # rename to m4b
+
+    # move source to completed folder
+
+    # move m4b to output folder
+
+    # clear working folder
+
 
 
 

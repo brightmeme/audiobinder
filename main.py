@@ -56,7 +56,7 @@ for entry in os.listdir("input"):
                 ##################################################################
                 #            # <22.05 KHz # 22.05KHz   # 44.1 KHz   # >44.1KHz   #
                 ##################################################################
-                # Stereo     #  48 Kbps   #  64 Kbps   #  96 Kbps   # 112 Kbps   #
+                # Stereo     #  32 Kbps   #  64 Kbps   #  80 Kbps   #  96 Kbps   #
                 # Mono       #  32 Kbps   #  48 Kbps   #  64 Kbps   #  80 Kbps   #
                 ##################################################################
 
@@ -70,11 +70,11 @@ for entry in os.listdir("input"):
 
                 bitrate = "64k"  # default - should always be overridden
                 if input_channels > 1 and input_freq > 44100:
-                    bitrate = "112k"
+                    bitrate = "96k"
                 elif input_freq > 44100:
                     bitrate = "80k"
                 elif input_channels > 1 and input_freq > 44000:
-                    bitrate = "96k"
+                    bitrate = "80k"
                 elif input_freq > 44000:
                     bitrate = "64k"
                 elif input_channels > 1 and input_freq > 22000:
@@ -82,12 +82,12 @@ for entry in os.listdir("input"):
                 elif input_freq > 22000:
                     bitrate = "48k"
                 elif input_channels > 1:
-                    bitrate = "48k"
+                    bitrate = "32k"
                 else:
                     bitrate = "32k"
 
                 bitrateMessage = "As the input file is " + str(input_freq) + "Hz"
-                bitrateMessage += " and has " + str(input_channels) + " channel"
+                bitrateMessage += " and is " + str(input_channels) + " channel"
                 bitrateMessage += ", use a bitrate of " + bitrate
                 print(bitrateMessage)
 
@@ -157,15 +157,15 @@ for entry in os.listdir("input"):
     mp4Info = MP4(workingFolder + entry + '.m4b')
 
     # set minimal tags - DOESNT SEEM TO WORK?
-    mp4Info['\\xa9ART'] = authorName
-    mp4Info['\\xa9alb'] = bookName
+    mp4Info['\xa9ART'] = authorName
+    mp4Info['\xa9alb'] = bookName
 
     # - TODO set cover image
 
     mp4Info.save()
 
-
     # move source folder to the completed folder
+
 
     # move m4b to output folder
 

@@ -11,7 +11,7 @@
 #   it moves the m4b file into the output folder and moves the mp3 audiobook into the completed folder
 
 from mutagen.mp3 import MP3
-from mutagen.mp4 import MP4
+from mutagen.mp4 import MP4, MP4Cover
 import os
 import shlex
 import subprocess
@@ -29,8 +29,8 @@ for entry in os.listdir("input"):
     # the author name is the part of the folder name before the first dash
     # the book name is everything after the first dash
     bookData = entry.partition("-")
-    authorName = bookData[0]
-    bookName = bookData[2]
+    authorName = bookData[0].strip()
+    bookName = bookData[2].strip()
     print("Author=", authorName, " Title=", bookName)
 
     # create working folder
@@ -156,15 +156,34 @@ for entry in os.listdir("input"):
     # set metadata
     mp4Info = MP4(workingFolder + entry + '.m4b')
 
-    # set minimal tags - DOESNT SEEM TO WORK?
+    # set minimal tags
     mp4Info['\xa9ART'] = authorName
     mp4Info['\xa9alb'] = bookName
 
-    # - TODO set cover image
+    # set cover image
+    coverType = "none"
+    coverFile = ""
+    if os.path.isfile("input/" + entry + "/cover.jpg"):
+        coverFile = "input/" + entry + "/cover.jpg"
+        coverType = 'jpg'
+    if os.path.isfile("input/" + entry + "/cover.png"):
+        coverFile = "input/" + entry + "/cover.png"
+        coverType = 'png'
+
+    if coverType != "none":
+        with open(coverFile, "rb") as f:
+            if coverType == "jpg":
+                mp4Info['covr'] = [
+                    MP4Cover(f.read(), imageformat=MP4Cover.FORMAT_JPEG)
+                ]
+            else:
+                mp4Info['covr'] = [
+                    MP4Cover(f.read(), imageformat=MP4Cover.FORMAT_PNG)
+                ]
 
     mp4Info.save()
 
-    # move source folder to the completed folder
+    # move source folder to the archive folder
 
 
     # move m4b to output folder

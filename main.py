@@ -14,6 +14,7 @@ from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -184,8 +185,10 @@ for entry in os.listdir("input"):
     mp4Info.save()
 
     # move source folder to the archive folder
-
+    shutil.move("input/" + entry, "archive/" + entry)
 
     # move m4b to output folder
+    shutil.move(workingFolder + entry + '.m4b', "done/")
 
     # clear working folder
+    shutil.rmtree(workingFolder)

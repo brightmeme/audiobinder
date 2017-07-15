@@ -19,6 +19,8 @@ import subprocess
 import sys
 import time
 
+threadsToManage = 8  # How many threads should be run simultaneously? This will make best use of a multicore system
+
 # find audiobooks to encode
 for entry in os.listdir("input"):
     # each item in this folder must be a folder containing a single audiobook
@@ -57,8 +59,8 @@ for entry in os.listdir("input"):
                 ##################################################################
                 #            # <22.05 KHz # 22.05KHz   # 44.1 KHz   # >44.1KHz   #
                 ##################################################################
-                # Stereo     #  32 Kbps   #  64 Kbps   #  80 Kbps   #  96 Kbps   #
-                # Mono       #  32 Kbps   #  48 Kbps   #  64 Kbps   #  80 Kbps   #
+                # Stereo     #  32 Kbps   #  48 Kbps   #  64 Kbps   #  96 Kbps   #
+                # Mono       #  32 Kbps   #  32 Kbps   #  48 Kbps   #  80 Kbps   #
                 ##################################################################
 
                 mp3Info = MP3('input/' + entry + '/' + rawfile)
@@ -75,13 +77,13 @@ for entry in os.listdir("input"):
                 elif input_freq > 44100:
                     bitrate = "80k"
                 elif input_channels > 1 and input_freq > 44000:
-                    bitrate = "80k"
+                    bitrate = "64k"
                 elif input_freq > 44000:
-                    bitrate = "64k"
-                elif input_channels > 1 and input_freq > 22000:
-                    bitrate = "64k"
-                elif input_freq > 22000:
                     bitrate = "48k"
+                elif input_channels > 1 and input_freq > 22000:
+                    bitrate = "32k"
+                elif input_freq > 22000:
+                    bitrate = "32k"
                 elif input_channels > 1:
                     bitrate = "32k"
                 else:
@@ -186,6 +188,24 @@ for entry in os.listdir("input"):
 
     # move source folder to the archive folder
     shutil.move("input/" + entry, "archive/" + entry)
+
+    # 7zip with ultra settings the source folder
+    commandline = '7zr a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on'
+    commandline += ' "archive/' + entry + '.7z"'
+    commandline += ' "archive/' + entry + '/"'
+
+    args = shlex.split(commandline)
+
+    # compress the source media files
+    p = subprocess.call(args)
+
+    # delete the uncompressed source media files
+    commandline = 'rm -rf "archive/' + entry + '/"'
+
+    args = shlex.split(commandline)
+
+    # delete the uncompressed source media files
+    p = subprocess.call(args)
 
     # move m4b to output folder
     shutil.move(workingFolder + entry + '.m4b', "done/")

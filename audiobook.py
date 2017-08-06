@@ -5,6 +5,7 @@ import os
 
 class Audiobook:
 
+
     def determine_bitrate_from_mp3_file(self, mp3_file_path):
         # Table of appropriate bit rates for spoken word content
         ##################################################################

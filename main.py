@@ -10,6 +10,7 @@
 #       to keep metadata clean, it is minimal and consists only of book name, author name
 #   it moves the m4b file into the output folder and moves the mp3 audiobook into the completed folder
 
+import glob
 import os
 import shlex
 import shutil
@@ -40,16 +41,18 @@ for entry in os.listdir("input"):
     workingFolder = 'working/' + entry + '/'
 
     # get the list of files in some order
-    rawfilelist = os.listdir("input/" + entry)
-    rawfilelist.sort()
+    raw_file_list = os.listdir("input/" + entry)
+    raw_file_list.sort()
 
     fileCounter = 0
     referenceToPopens = {}
 
     bitrate = ''
 
-    for rawfile in rawfilelist:
-        if rawfile.endswith('.mp3'):
+    for rawfile in raw_file_list:
+        if rawfile.startswith('.'):
+            print('skipping hidden file ' + rawfile)
+        elif rawfile.endswith('.mp3'):
             fileCounter += 1
 
             # read details from first file - assumption all files encoded similarly

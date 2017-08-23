@@ -10,24 +10,25 @@
 #       to keep metadata clean, it is minimal and consists only of book name, author name
 #   it moves the m4b file into the output folder and moves the mp3 audiobook into the completed folder
 
-import glob
 import os
-import shlex
-import shutil
-import subprocess
-import sys
-import time
 from audiobook import Audiobook
 
 threadsToManage = 8  # How many threads should be run simultaneously
 
+input_folder = "input/"
+working_folder = "working/"
+output_folder = "done/"
+archive_folder = "archive/"
+
 # find audiobooks to encode
-for entry in os.listdir("input"):
+for entry in os.listdir(input_folder):
     # each item in this folder must be a folder containing a single audiobook
     # each audiobook folder name must be named: "Author Name - Book Name"
     # if the audiobook is part of a series it must be named: "Author Name - Series Name NN - Book Name" where NN is the
     #  sequence of the book in the series.
     print("Found book ", entry)
+
+    source_folder = input_folder + entry + "/"
 
     # the author name is the part of the folder name before the first dash
     # the book name is everything after the first dash
@@ -36,121 +37,52 @@ for entry in os.listdir("input"):
     book_name = bookData[2].strip()
     print("Author=", author_name, " Title=", book_name)
 
+    audiobook = Audiobook(author_name, book_name, source_folder, working_folder, output_folder, archive_folder)
+
     # create working folder
-    os.makedirs("working/" + entry)
-    workingFolder = 'working/' + entry + '/'
+    audiobook.create_working_folder()
 
-    # get the list of files in some order
-    raw_file_list = os.listdir("input/" + entry)
-    raw_file_list.sort()
+    if audiobook.determine_source_type() == audiobook.source_type_mp3_single_folder:
+        # determine bitrate - first mp3 file in source folder
+        bitrate = "64k"
 
-    fileCounter = 0
-    referenceToPopens = {}
+        # encode all mp3 files in source folder to aac
+        audiobook.encode_mp3_files_in_source_folder(bitrate)
 
-    bitrate = ''
+        # combine all aac files in working folder to m4b
+        audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-    for rawfile in raw_file_list:
-        if rawfile.startswith('.'):
-            print('skipping hidden file ' + rawfile)
-        elif rawfile.endswith('.mp3'):
-            fileCounter += 1
+    elif audiobook.determine_source_type() == audiobook.source_type_mp3_single_folder:
+        # copy all mp3 files to new single folder structure in working folder
 
-            # read details from first file - assumption all files encoded similarly
-            if bitrate == '':
-                audiobook = Audiobook()
-                bitrate = audiobook.determine_bitrate_from_mp3_file('input/' + entry + '/' + rawfile)
+        # determine bitrate - first mp3 file in working folder
+        bitrate = "64k"
 
-            outputFilename = workingFolder + "outputfile%03d.aac" % fileCounter
+        # encode all mp3 files in working folder to aac
+        audiobook.encode_mp3_files_in_working_folder(bitrate)
 
-            commandline = 'ffmpeg -i "input/' + entry + '/' + rawfile + '" -loglevel panic -y -c:a aac -b:a  '
-            commandline += bitrate + ' "' + outputFilename + '"'
+        # combine all aac files in working folder to m4b
+        audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-            args = shlex.split(commandline)
+    elif audiobook.determine_source_type() == audiobook.source_type_aac_single_folder:
+        # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
 
-            # launch the recode in the background..
-            p = subprocess.Popen(args)
-            referenceToPopens[fileCounter] = p
+        # copy aac files into well named aac files in working folder
+        audiobook.copy_aac_files_to_working_folder()
 
-    # wait here until all encodes are completed
-    filesComplete = 0
-    while True:
-        # prevent thrashing
-        time.sleep(.5)
-        for key, value in referenceToPopens.items():
-            outputLine = "\rEncoding to aac " + str(filesComplete) + "/" + str(fileCounter)
-            sys.stdout.write(outputLine)
+        # combine all aac files in working folder to m4b
+        audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-            if value.poll() is None:
-                time.sleep(.1)
-            else:
-                # delete item
-                del referenceToPopens[key]
-
-                # update counter
-                filesComplete += 1
-                outputLine = "\rEncoding to aac " + str(filesComplete) + "/" + str(fileCounter)
-                sys.stdout.write(outputLine)
-                break
-
-        # when all are complete, move to the next audiobook
-        if filesComplete >= fileCounter:
-            outputLine = "\rEncoding to aac " + str(filesComplete) + "/" + str(fileCounter)
-            sys.stdout.write(outputLine)
-            sys.stdout.flush()
-            break
-
-    # Merge the aac files into a single m4a file
-    mergeCommandlineHead = 'ffmpeg -i "concat:'
-    mergeCommandlineBody = ""
-    mergeCommandlineTail = '" -c copy ' + '"' + workingFolder + entry + '.m4a"'
-
-    fileMergeIterator = 0
-    while fileMergeIterator < fileCounter:
-        fileMergeIterator += 1
-        mergeCommandlineBody += workingFolder + "outputfile%03d.aac" % fileMergeIterator
-        if fileMergeIterator < fileCounter:
-            mergeCommandlineBody += "|"
-
-    mergeCommand = mergeCommandlineHead + mergeCommandlineBody + mergeCommandlineTail
-    print(mergeCommand) # DEBUG
-
-    args = shlex.split(mergeCommand)
-
-    # Now run the merge process for this book - results in m4a containing all aac file content
-    subprocess.run(args)
-
-    # rename to m4b
-    os.rename(workingFolder + entry + '.m4a', workingFolder + entry + '.m4b')
-
-    # TODO test parameters
-    audiobook = Audiobook()
-    audiobook.set_metadata_on_m4b_audiobook_file(workingFolder + entry + '.m4b', author_name, book_name, workingFolder + entry)
-
-    # move source folder to the archive folder
-    shutil.move("input/" + entry, "archive/" + entry)
-
-    # 7zip with ultra settings the source folder
-    commandline = '7zr a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on'
-    commandline += ' "archive/' + entry + '.7z"'
-    commandline += ' "archive/' + entry + '/"'
-
-    args = shlex.split(commandline)
-
-    # compress the source media files
-    p = subprocess.call(args)
-
-    # delete the uncompressed source media files
-    commandline = 'rm -rf "archive/' + entry + '/"'
-
-    args = shlex.split(commandline)
-
-    # delete the uncompressed source media files
-    p = subprocess.call(args)
+    # set metadata
+    audiobook.set_metadata_on_m4b_audiobook_file()
 
     # move m4b to output folder
-    shutil.move(workingFolder + entry + '.m4b', "done/")
+    audiobook.move_completed_encode_to_output_folder()
+
+    # archive source folder
+    audiobook.archive_source_files()
 
     # clear working folder
-    shutil.rmtree(workingFolder)
+    audiobook.clear_working_folder()
 
 

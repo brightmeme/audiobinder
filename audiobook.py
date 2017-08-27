@@ -44,8 +44,13 @@ class Audiobook:
         #   mp3 in subfolders
         #   aac in source folder
 
+        # todo - check if aac is in source folder then return aac single source folder
+
+        # todo - check if no mp3 or aac in source folder
+
+
         # only implemented option for now is mp3 single folder
-        return self.source_type_aac_single_folder
+        return self.source_type_mp3_single_folder
 
     def merge_aac_files_in_working_folder_into_m4b(self):
         # Merge the aac files into a single m4a file

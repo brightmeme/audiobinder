@@ -15,10 +15,10 @@ from audiobook import Audiobook
 
 threadsToManage = 8  # How many threads should be run simultaneously
 
-input_folder = "input/"
-working_folder = "working/"
-output_folder = "done/"
-archive_folder = "archive/"
+input_folder = "/home/tom/dev/audiobook_data/input/"
+working_folder = "/home/tom/dev/audiobook_data/working/"
+output_folder = "/home/tom/dev/audiobook_data/done/"
+archive_folder = "/home/tom/dev/audiobook_data/archive/"
 
 # find audiobooks to encode
 for entry in os.listdir(input_folder):
@@ -44,7 +44,7 @@ for entry in os.listdir(input_folder):
 
     if audiobook.determine_source_type() == audiobook.source_type_mp3_single_folder:
         # determine bitrate - first mp3 file in source folder
-        bitrate = "64k"
+        bitrate = audiobook.determine_bitrate_from_mp3_file()
 
         # encode all mp3 files in source folder to aac
         audiobook.encode_mp3_files_in_source_folder(bitrate)
@@ -52,7 +52,7 @@ for entry in os.listdir(input_folder):
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-    elif audiobook.determine_source_type() == audiobook.source_type_mp3_single_folder:
+    elif audiobook.determine_source_type() == audiobook.source_type_mp3_multi_folder:
         # copy all mp3 files to new single folder structure in working folder
 
         # determine bitrate - first mp3 file in working folder

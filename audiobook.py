@@ -2,6 +2,7 @@
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover
 import fnmatch
+import glob
 import os
 import shlex
 import shutil
@@ -31,7 +32,7 @@ class Audiobook:
     def prepare_mp3_multi_folder_source_for_encoding(self):
         # TODO copy all mp3 files into working folder prefixed with the name of their folder
         subfolders = self.get_subfolders_in_source_folder()
-        for each subfolder in subfolders:
+        #for each subfolder in subfolders:
             #move files up a level prefixed with the folder name
 
     def get_subfolders_in_source_folder(self):
@@ -100,7 +101,8 @@ class Audiobook:
             elif rawfile.endswith('.mp3'):
                 file_counter += 1
 
-                output_filename = outputfile%03d.aac" % file_counter
+                output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
+                output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
 
                 command_line = 'ffmpeg -i "' + self.source_folder + rawfile + '"'
                 command_line += ' -loglevel panic -y -c:a aac -b:a  '
@@ -159,12 +161,12 @@ class Audiobook:
 
     def archive_source_files(self):
         # move source folder to the archive folder
-        shutil.move(self.source_folder, "archive/")
+        shutil.move(self.source_folder, self.archive_folder)
 
         # 7zip with ultra settings the source folder
         commandline = '7zr a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on'
-        commandline += ' "archive/' + entry + '.7z"'
-        commandline += ' "archive/' + entry + '/"'
+        commandline += ' "' + self.archive_folder + self.source_book_folder_name + '.7z"'
+        commandline += ' "' + self.archive_folder + self.source_book_folder_name + '/"'
 
         args = shlex.split(commandline)
 
@@ -172,14 +174,14 @@ class Audiobook:
         p = subprocess.call(args)
 
         # delete the uncompressed source media files
-        commandline = 'rm -rf "archive/' + self.source_book_folder_name + '/"'
+        commandline = 'rm -rf "' + self.archive_folder + self.source_book_folder_name + '/"'
 
         args = shlex.split(commandline)
 
         # delete the uncompressed source media files
         p = subprocess.call(args)
 
-    def determine_bitrate_from_mp3_file(self, mp3_file_path):
+    def determine_bitrate_from_mp3_file(self):
         # Table of appropriate bit rates for spoken word content
         ##################################################################
         #            # <22.05 KHz # 22.05KHz   # 44.1 KHz   # >44.1KHz   #
@@ -191,6 +193,13 @@ class Audiobook:
         bitrate = "64k"  # default - should always be overridden
 
         try:
+            mp3_file_path = ""
+
+            raw_file_list = os.listdir(self.source_folder)
+            for raw_file in raw_file_list:
+                if raw_file.endswith('.mp3'):
+                    mp3_file_path = self.source_folder + raw_file
+                    break
 
             print("pull bitrate from " + mp3_file_path)
 

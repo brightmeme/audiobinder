@@ -42,12 +42,8 @@ class Audiobook:
                 if os.path.isdir(os.path.join(self.source_folder, name))]
 
     def determine_source_type(self):
-        # TODO check for:
-        #   mp3 in source folder
-        #   mp3 in subfolders
-        #   aac in source folder
 
-        # todo - check if aac is in source folder then return aac single source folder
+
         aac_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.aac'))
         if aac_file_counter > 0:
             return self.source_type_aac_single_folder
@@ -60,11 +56,17 @@ class Audiobook:
         if m4b_file_counter > 0:
             return self.source_type_m4b_single_folder
 
+        mp3_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.mp3'))
+        if mp3_file_counter > 0:
+            return self.source_type_mp3_single_folder
 
-        # only other option for now is mp3 single folder
-        return self.source_type_mp3_single_folder
+        mp3_subfolder_counter = 0
+        for r, d, files in os.walk(self.source_folder):
+            for filename in fnmatch.filter(files,"*.mp3"):
+                return self.source_type_mp3_multi_folder
 
-        # todo - check if no mp3 or aac in source folder - look for mp3 in subfolder
+        # unknown - raise error
+        raise EnvironmentError()
 
 
     def merge_aac_files_in_working_folder_into_m4b(self):
@@ -113,7 +115,7 @@ class Audiobook:
         self.encode_mp3_files_in_folder(self.source_folder, bitrate)
 
     def encode_mp3_files_in_working_folder(self, bitrate):
-        self.encode_mp3_files_folder(self.working_folder, bitrate)
+        self.encode_mp3_files_in_folder(self.working_folder, bitrate)
 
     def encode_mp3_files_in_folder(self, parent_folder, bitrate):
         # get the list of files in good order
@@ -130,9 +132,8 @@ class Audiobook:
                 file_counter += 1
 
                 output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
-                output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
 
-                command_line = 'ffmpeg -i "' + self.source_folder + rawfile + '"'
+                command_line = 'ffmpeg -i "' + parent_folder + rawfile + '"'
                 command_line += ' -loglevel panic -y -c:a aac -b:a  '
                 command_line += bitrate + ' "' + output_filename + '"'
 
@@ -146,7 +147,7 @@ class Audiobook:
         files_complete = 0
         while True:
             # prevent thrashing
-            time.sleep(.5)
+            time.sleep(.1)
             for key, value in reference_to_popens.items():
                 output_line = "\rEncoding to aac " + str(files_complete) + "/" + str(file_counter)
                 sys.stdout.write(output_line)
@@ -182,10 +183,19 @@ class Audiobook:
                 print('skipping hidden file ' + rawfile)
             elif rawfile.endswith('.' + extension) :
                 file_counter += 1
-
                 output_filename = self.working_folder + "outputfile%03d."% file_counter + extension
 
                 shutil.copy(self.source_folder + rawfile, output_filename)
+
+    def deepcopy_mp3_files_to_working_folder(self):
+        file_counter = 0
+
+        for src_dir, dirs, files in os.walk(self.source_folder):
+            for filename in fnmatch.filter(files,"*.mp3"):
+                file_counter += 1
+                output_filename = self.working_folder + "outputfile%03d."% file_counter + 'mp3'
+
+                shutil.copy(src_dir + "/" + filename, output_filename)
 
     def archive_source_files(self):
         # move source folder to the archive folder
@@ -209,7 +219,7 @@ class Audiobook:
         # delete the uncompressed source media files
         p = subprocess.call(args)
 
-    def determine_bitrate_from_mp3_file(self):
+    def determine_bitrate_from_mp3_file(self, folder):
         # Table of appropriate bit rates for spoken word content
         ##################################################################
         #            # <22.05 KHz # 22.05KHz   # 44.1 KHz   # >44.1KHz   #
@@ -223,10 +233,10 @@ class Audiobook:
         try:
             mp3_file_path = ""
 
-            raw_file_list = os.listdir(self.source_folder)
+            raw_file_list = os.listdir(folder)
             for raw_file in raw_file_list:
                 if raw_file.upper().endswith('.MP3') and not(raw_file.startswith('.')):
-                    mp3_file_path = self.source_folder + raw_file
+                    mp3_file_path = folder + raw_file
                     break
 
             print("pull bitrate from " + mp3_file_path)

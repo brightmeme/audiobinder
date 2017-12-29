@@ -47,7 +47,7 @@ for entry in os.listdir(input_folder):
 
     if source_type == audiobook.source_type_mp3_single_folder:
         # determine bitrate - first mp3 file in source folder
-        bitrate = audiobook.determine_bitrate_from_mp3_file()
+        bitrate = audiobook.determine_bitrate_from_mp3_file(audiobook.source_folder)
 
         # encode all mp3 files in source folder to aac
         audiobook.encode_mp3_files_in_source_folder(bitrate)
@@ -57,9 +57,10 @@ for entry in os.listdir(input_folder):
 
     elif source_type == audiobook.source_type_mp3_multi_folder:
         # copy all mp3 files to new single folder structure in working folder
+        audiobook.deepcopy_mp3_files_to_working_folder()
 
         # determine bitrate - first mp3 file in working folder
-        bitrate = "64k"
+        bitrate = audiobook.determine_bitrate_from_mp3_file(audiobook.working_folder)
 
         # encode all mp3 files in working folder to aac
         audiobook.encode_mp3_files_in_working_folder(bitrate)

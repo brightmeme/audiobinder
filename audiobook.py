@@ -56,6 +56,11 @@ class Audiobook:
         if m4a_file_counter > 0:
             return self.source_type_m4a_single_folder
 
+        m4b_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.m4b'))
+        if m4b_file_counter > 0:
+            return self.source_type_m4b_single_folder
+
+
         # only other option for now is mp3 single folder
         return self.source_type_mp3_single_folder
 
@@ -90,17 +95,17 @@ class Audiobook:
         os.rename(self.working_folder + self.source_book_folder_name + '.m4a',
                   self.working_folder + self.source_book_folder_name + '.m4b')
 
-    def extract_aac_from_m4a_files_in_working_folder(self):
-        # Merge the m4a files into a single m4a file
-        # we must extract the aac audio first, then repackage to m4a
+    def extract_aac_from_files_in_working_folder(self, extension):
+        # Extract m4a/m4b files into a multiple aac files
 
-        file_counter = len(fnmatch.filter(os.listdir(self.working_folder), '*.m4a'))
+        file_counter = len(fnmatch.filter(os.listdir(self.working_folder), '*.' + extension))
 
         file_extract_iterator = 0
         while file_extract_iterator < file_counter:
             file_extract_iterator += 1
             extract_commandline = 'ffmpeg -i ' + '"' + self.working_folder + "outputfile%03d." % file_extract_iterator \
-                                  + "m4a" + '"' + ' -acodec copy "' + self.working_folder + "outputfile%03d." % file_extract_iterator + 'aac"'
+                                  + extension + '"' + ' -acodec copy "' + self.working_folder \
+                                  + "outputfile%03d." % file_extract_iterator + 'aac"'
             args = shlex.split(extract_commandline)
             subprocess.run(args)
 
@@ -166,7 +171,7 @@ class Audiobook:
                 break
 
 
-    def copy_xxx_files_to_working_folder(self, extension):
+    def copy_files_to_working_folder(self, extension):
         # for each aac file in source folder, copy to working folder
         raw_file_list = os.listdir(self.source_folder)
         raw_file_list.sort()
@@ -220,7 +225,7 @@ class Audiobook:
 
             raw_file_list = os.listdir(self.source_folder)
             for raw_file in raw_file_list:
-                if raw_file.upper().endswith('.MP3'):
+                if raw_file.upper().endswith('.MP3') and not(raw_file.startswith('.')):
                     mp3_file_path = self.source_folder + raw_file
                     break
 

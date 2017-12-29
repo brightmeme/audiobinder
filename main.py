@@ -71,7 +71,7 @@ for entry in os.listdir(input_folder):
         # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
 
         # copy aac files into well named aac files in working folder
-        audiobook.copy_xxx_files_to_working_folder('aac')
+        audiobook.copy_files_to_working_folder('aac')
 
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
@@ -79,13 +79,27 @@ for entry in os.listdir(input_folder):
     elif source_type == audiobook.source_type_m4a_single_folder:
         # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
 
-        # copy aac files into well named aac files in working folder
-        audiobook.copy_xxx_files_to_working_folder('m4a')
+        # copy m4a files into working folder
+        audiobook.copy_files_to_working_folder('m4a')
 
-        audiobook.extract_aac_from_m4a_files_in_working_folder()
+        # extract aac audio from m4a
+        audiobook.extract_aac_from_files_in_working_folder('m4a')
 
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
+
+    elif source_type == audiobook.source_type_m4b_single_folder:
+        # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
+
+        # copy m4a files into working folder
+        audiobook.copy_files_to_working_folder('m4b')
+
+        # extract aac audio from m4a
+        audiobook.extract_aac_from_files_in_working_folder('m4b')
+
+        # combine all aac files in working folder to m4b
+        audiobook.merge_aac_files_in_working_folder_into_m4b()
+
 
     # set metadata
     audiobook.set_metadata_on_m4b_audiobook_file()

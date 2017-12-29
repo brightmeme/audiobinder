@@ -42,7 +42,10 @@ for entry in os.listdir(input_folder):
     # create working folder
     audiobook.create_working_folder()
 
-    if audiobook.determine_source_type() == audiobook.source_type_mp3_single_folder:
+    source_type = audiobook.determine_source_type()
+    print(source_type)
+
+    if source_type == audiobook.source_type_mp3_single_folder:
         # determine bitrate - first mp3 file in source folder
         bitrate = audiobook.determine_bitrate_from_mp3_file()
 
@@ -52,7 +55,7 @@ for entry in os.listdir(input_folder):
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-    elif audiobook.determine_source_type() == audiobook.source_type_mp3_multi_folder:
+    elif source_type == audiobook.source_type_mp3_multi_folder:
         # copy all mp3 files to new single folder structure in working folder
 
         # determine bitrate - first mp3 file in working folder
@@ -64,11 +67,22 @@ for entry in os.listdir(input_folder):
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
 
-    elif audiobook.determine_source_type() == audiobook.source_type_aac_single_folder:
+    elif source_type == audiobook.source_type_aac_single_folder:
         # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
 
         # copy aac files into well named aac files in working folder
-        audiobook.copy_aac_files_to_working_folder()
+        audiobook.copy_xxx_files_to_working_folder('aac')
+
+        # combine all aac files in working folder to m4b
+        audiobook.merge_aac_files_in_working_folder_into_m4b()
+
+    elif source_type == audiobook.source_type_m4a_single_folder:
+        # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE
+
+        # copy aac files into well named aac files in working folder
+        audiobook.copy_xxx_files_to_working_folder('m4a')
+
+        audiobook.extract_aac_from_m4a_files_in_working_folder()
 
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()

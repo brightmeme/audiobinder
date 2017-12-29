@@ -15,6 +15,8 @@ class Audiobook:
     source_type_mp3_single_folder = "mp3single"
     source_type_mp3_multi_folder = "mp3multi"
     source_type_aac_single_folder = "aacsingle"
+    source_type_m4a_single_folder = "m4asingle"
+    source_type_m4b_single_folder = "m4bsingle"
 
     def __init__(self, author, title, source_folder, working_folder, output_folder, archive_folder):
         self.author = author
@@ -46,12 +48,19 @@ class Audiobook:
         #   aac in source folder
 
         # todo - check if aac is in source folder then return aac single source folder
+        aac_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.aac'))
+        if aac_file_counter > 0:
+            return self.source_type_aac_single_folder
 
-        # todo - check if no mp3 or aac in source folder
+        m4a_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.m4a'))
+        if m4a_file_counter > 0:
+            return self.source_type_m4a_single_folder
 
-
-        # only implemented option for now is mp3 single folder
+        # only other option for now is mp3 single folder
         return self.source_type_mp3_single_folder
+
+        # todo - check if no mp3 or aac in source folder - look for mp3 in subfolder
+
 
     def merge_aac_files_in_working_folder_into_m4b(self):
         # Merge the aac files into a single m4a file
@@ -66,7 +75,7 @@ class Audiobook:
         file_merge_iterator = 0
         while file_merge_iterator < file_counter:
             file_merge_iterator += 1
-            merge_commandline_body += self.working_folder + "outputfile%03d.aac" % file_merge_iterator
+            merge_commandline_body += self.working_folder + "outputfile%03d." % file_merge_iterator + "aac"
             if file_merge_iterator < file_counter:
                 merge_commandline_body += "|"
 
@@ -80,6 +89,20 @@ class Audiobook:
         # rename to m4b
         os.rename(self.working_folder + self.source_book_folder_name + '.m4a',
                   self.working_folder + self.source_book_folder_name + '.m4b')
+
+    def extract_aac_from_m4a_files_in_working_folder(self):
+        # Merge the m4a files into a single m4a file
+        # we must extract the aac audio first, then repackage to m4a
+
+        file_counter = len(fnmatch.filter(os.listdir(self.working_folder), '*.m4a'))
+
+        file_extract_iterator = 0
+        while file_extract_iterator < file_counter:
+            file_extract_iterator += 1
+            extract_commandline = 'ffmpeg -i ' + '"' + self.working_folder + "outputfile%03d." % file_extract_iterator \
+                                  + "m4a" + '"' + ' -acodec copy "' + self.working_folder + "outputfile%03d." % file_extract_iterator + 'aac"'
+            args = shlex.split(extract_commandline)
+            subprocess.run(args)
 
     def encode_mp3_files_in_source_folder(self, bitrate):
         self.encode_mp3_files_in_folder(self.source_folder, bitrate)
@@ -98,7 +121,7 @@ class Audiobook:
         for rawfile in raw_file_list:
             if rawfile.startswith('.'):
                 print('skipping hidden file ' + rawfile)
-            elif rawfile.endswith('.mp3'):
+            elif rawfile.upper().endswith('.MP3'):
                 file_counter += 1
 
                 output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
@@ -143,7 +166,7 @@ class Audiobook:
                 break
 
 
-    def copy_aac_files_to_working_folder(self):
+    def copy_xxx_files_to_working_folder(self, extension):
         # for each aac file in source folder, copy to working folder
         raw_file_list = os.listdir(self.source_folder)
         raw_file_list.sort()
@@ -152,10 +175,10 @@ class Audiobook:
         for rawfile in raw_file_list:
             if rawfile.startswith('.'):
                 print('skipping hidden file ' + rawfile)
-            elif rawfile.endswith('.aac'):
+            elif rawfile.endswith('.' + extension) :
                 file_counter += 1
 
-                output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
+                output_filename = self.working_folder + "outputfile%03d."% file_counter + extension
 
                 shutil.copy(self.source_folder + rawfile, output_filename)
 
@@ -197,7 +220,7 @@ class Audiobook:
 
             raw_file_list = os.listdir(self.source_folder)
             for raw_file in raw_file_list:
-                if raw_file.endswith('.mp3'):
+                if raw_file.upper().endswith('.MP3'):
                     mp3_file_path = self.source_folder + raw_file
                     break
 

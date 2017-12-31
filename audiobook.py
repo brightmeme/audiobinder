@@ -1,6 +1,7 @@
 
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover
+from collections import Counter
 import fnmatch
 import glob
 import os
@@ -18,7 +19,7 @@ class Audiobook:
     source_type_m4a_single_folder = "m4asingle"
     source_type_m4b_single_folder = "m4bsingle"
 
-    def __init__(self, author, title, source_folder, working_folder, output_folder, archive_folder):
+    def __init__(self, author, title, source_folder, working_folder, output_folder, archive_folder,threads_to_manage):
         self.author = author
         self.title = title
         self.source_folder = source_folder
@@ -26,6 +27,7 @@ class Audiobook:
         self.output_folder = output_folder
         self.archive_folder = archive_folder
         self.source_book_folder_name = author + ' - ' + title
+        self.threads_to_manage = threads_to_manage
 
     def create_working_folder(self):
         os.makedirs(self.working_folder + self.source_book_folder_name)
@@ -122,35 +124,17 @@ class Audiobook:
         raw_file_list = os.listdir(parent_folder)
         raw_file_list.sort()
 
-        file_counter = 0
+        files_counter = 0
+        files_complete = 0
+        files_total = len(raw_file_list)
+        encode_counter = 0
+        encodes_in_progress = 0
         reference_to_popens = {}
 
-        for rawfile in raw_file_list:
-            if rawfile.startswith('.'):
-                print('skipping hidden file ' + rawfile)
-            elif rawfile.upper().endswith('.MP3'):
-                file_counter += 1
-
-                output_filename = self.working_folder + "outputfile%03d.aac" % file_counter
-
-                command_line = 'ffmpeg -i "' + parent_folder + rawfile + '"'
-                command_line += ' -loglevel panic -y -c:a aac -b:a  '
-                command_line += bitrate + ' "' + output_filename + '"'
-
-                args = shlex.split(command_line)
-
-                # launch the recode in the background..
-                p = subprocess.Popen(args)
-                reference_to_popens[file_counter] = p
-
-        # wait here until all encodes are completed
-        files_complete = 0
         while True:
-            # prevent thrashing
-            time.sleep(.1)
+
+            # check for encodes that have finished
             for key, value in reference_to_popens.items():
-                output_line = "\rEncoding to aac " + str(files_complete) + "/" + str(file_counter)
-                sys.stdout.write(output_line)
 
                 if value.poll() is None:
                     time.sleep(.1)
@@ -159,18 +143,55 @@ class Audiobook:
                     del reference_to_popens[key]
 
                     # update counter
+                    encodes_in_progress -= 1
                     files_complete += 1
-                    output_line = "\rEncoding to aac " + str(files_complete) + "/" + str(file_counter)
+                    output_line = "\rEncoding to aac - " + str(files_complete) \
+                                + " of " + str(files_total) + " files complete"
                     sys.stdout.write(output_line)
                     break
 
-            # when all are complete, move to the next audiobook
-            if files_complete >= file_counter:
-                output_line = "\rEncoding to aac " + str(files_complete) + "/" + str(file_counter)
-                sys.stdout.write(output_line)
-                sys.stdout.flush()
+            # start some new encodes if a thread is free
+            if encodes_in_progress < self.threads_to_manage:
+                while encodes_in_progress < self.threads_to_manage and files_counter < files_total:
+
+                    files_counter += 1
+
+                    if files_counter > files_total:
+                        break
+
+                    filename =  raw_file_list[files_counter - 1]
+
+                    if filename.startswith('.'):
+                        # skip this file
+                        files_complete += 1
+
+                    elif filename.upper().endswith(".MP3"):
+
+                        encode_counter += 1
+
+                        # start encode
+                        output_filename = self.working_folder + "outputfile%03d.aac" % encode_counter
+
+                        command_line = 'ffmpeg -i "' + parent_folder + filename + '"'
+                        command_line += ' -loglevel panic -y -c:a aac -b:a  '
+                        command_line += bitrate + ' "' + output_filename + '"'
+
+                        args = shlex.split(command_line)
+
+                        # launch the recode in the background..
+                        p = subprocess.Popen(args)
+                        reference_to_popens[encode_counter] = p
+
+                        encodes_in_progress += 1
+
+                    else:
+                        # skip this file
+                        files_complete += 1
+
+            if files_complete >= files_counter:
                 break
 
+            time.sleep(.1)
 
     def copy_files_to_working_folder(self, extension):
         # for each aac file in source folder, copy to working folder
@@ -200,6 +221,8 @@ class Audiobook:
     def archive_source_files(self):
         # move source folder to the archive folder
         shutil.move(self.source_folder, self.archive_folder)
+
+        time.sleep(1) # wait for transfer to complete
 
         # 7zip with ultra settings the source folder
         commandline = '7zr a -t7z -m0=lzma -mx=9 -mfb=64 -md=32m -ms=on'

@@ -37,7 +37,7 @@ for entry in os.listdir(input_folder):
     book_name = bookData[2].strip()
     print("Author=", author_name, " Title=", book_name)
 
-    audiobook = Audiobook(author_name, book_name, source_folder, working_folder, output_folder, archive_folder)
+    audiobook = Audiobook(author_name, book_name, source_folder, working_folder, output_folder, archive_folder, threadsToManage)
 
     # create working folder
     audiobook.create_working_folder()

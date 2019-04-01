@@ -15,10 +15,10 @@ from audiobook import Audiobook
 
 threadsToManage = 8  # How many threads should be run simultaneously
 
-input_folder = "/home/tom/dev/audiobook_data/input/"
-working_folder = "/home/tom/dev/audiobook_data/working/"
-output_folder = "/home/tom/dev/audiobook_data/done/"
-archive_folder = "/home/tom/dev/audiobook_data/archive/"
+input_folder = "/home/tom/dev/data/audiobooks/input/"
+working_folder = "/home/tom/dev/data/audiobooks/working/"
+output_folder = "/home/tom/dev/data/audiobooks/done/"
+archive_folder = "/home/tom/dev/data/audiobooks/archive/"
 
 # find audiobooks to encode
 for entry in os.listdir(input_folder):

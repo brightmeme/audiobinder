@@ -1,50 +1,55 @@
 
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4Cover
+from mutagen.aac import AACInfo
 from collections import Counter
 import fnmatch
 import glob
 import os
 import shlex
 import shutil
+from string import Template
 import subprocess
 import sys
 import time
+import datetime
 
 class Audiobook:
 
-    source_type_mp3_single_folder = "mp3single"
-    source_type_mp3_multi_folder = "mp3multi"
-    source_type_aac_single_folder = "aacsingle"
-    source_type_m4a_single_folder = "m4asingle"
-    source_type_m4b_single_folder = "m4bsingle"
-
-    def __init__(self, author, title, source_folder, working_folder, output_folder, archive_folder,threads_to_manage):
-        self.author = author
-        self.title = title
+    def __init__(self, author_name, book_name, source_folder, working_folder, output_folder, archive_folder, threadsToManage):
+        self.author_name = author_name
+        self.book_name = book_name
         self.source_folder = source_folder
         self.working_folder = working_folder
         self.output_folder = output_folder
         self.archive_folder = archive_folder
-        self.source_book_folder_name = author + ' - ' + title
-        self.threads_to_manage = threads_to_manage
+        self.threads_to_manage = threadsToManage
+        self.source_book_folder_name = self.author_name + ' - ' + self.book_name
 
-    def create_working_folder(self):
+        self.source_type_aac_single_folder = 1
+        self.source_type_m4a_single_folder = 2
+        self.source_type_m4b_single_folder = 3
+        self.source_type_mp3_single_folder = 4
+        self.source_type_mp3_multi_folder = 5
+
+        self.author = self.author_name
+        self.book = self.book_name
+
+    def recode_to_mp3(self):
         os.makedirs(self.working_folder + self.source_book_folder_name)
         self.working_folder = self.working_folder + self.source_book_folder_name + '/'
 
     def prepare_mp3_multi_folder_source_for_encoding(self):
         # TODO copy all mp3 files into working folder prefixed with the name of their folder
         subfolders = self.get_subfolders_in_source_folder()
-        #for each subfolder in subfolders:
-            #move files up a level prefixed with the folder name
+        # for each subfolder in subfolders:
+            # move files up a level prefixed with the folder name
 
     def get_subfolders_in_source_folder(self):
         return [name for name in os.listdir(self.source_folder)
                 if os.path.isdir(os.path.join(self.source_folder, name))]
 
     def determine_source_type(self):
-
 
         aac_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.aac'))
         if aac_file_counter > 0:
@@ -71,7 +76,7 @@ class Audiobook:
         raise EnvironmentError()
 
 
-    def merge_aac_files_in_working_folder_into_m4b(self):
+    def merge_aac_files_in_working_folder_into_m4b(self, has_chapterfile = False):
         # Merge the aac files into a single m4a file
 
         # count aac files in working folder
@@ -111,7 +116,7 @@ class Audiobook:
                                   + extension + '"' + ' -acodec copy "' + self.working_folder \
                                   + "outputfile%03d." % file_extract_iterator + 'aac"'
             args = shlex.split(extract_commandline)
-            subprocess.run(args)
+            subprocess.run(args, Shell=True, Check=True)
 
     def encode_mp3_files_in_source_folder(self, bitrate):
         self.encode_mp3_files_in_folder(self.source_folder, bitrate)
@@ -123,6 +128,8 @@ class Audiobook:
         # get the list of files in good order
         raw_file_list = os.listdir(parent_folder)
         raw_file_list.sort()
+
+        chapter_data = {}
 
         files_counter = 0
         files_complete = 0
@@ -159,7 +166,7 @@ class Audiobook:
                     if files_counter > files_total:
                         break
 
-                    filename =  raw_file_list[files_counter - 1]
+                    filename = raw_file_list[files_counter - 1]
 
                     if filename.startswith('.'):
                         # skip this file
@@ -168,6 +175,10 @@ class Audiobook:
                     elif filename.upper().endswith(".MP3"):
 
                         encode_counter += 1
+
+                        # extract track length for chapter lengths
+                        mp3_info = MP3(parent_folder + filename)
+                        chapter_data[encode_counter] = mp3_info.info.length
 
                         # start encode
                         output_filename = self.working_folder + "outputfile%03d.aac" % encode_counter
@@ -189,9 +200,64 @@ class Audiobook:
                         files_complete += 1
 
             if files_complete >= files_counter:
+                # write the chapters file
+                first_space = self.working_folder.find(" ")
+                chapter_file_name = self.working_folder + self.source_book_folder_name + ".chapters.txt"
+                f = open(chapter_file_name, "w+")
+
+                seconds_count = 0.0
+                for key in chapter_data:
+
+                    # build time string
+                    seconds = seconds_count % 60
+                    seconds_working = seconds_count - seconds
+                    minutes = (seconds_working // 60) % 60
+                    seconds_working = seconds_working - (minutes * 60)
+                    hours = (seconds_working // 3600)
+                    seconds_working = seconds_working - (hours * 3600)
+
+                    time_string = ""
+                    time_string = time_string + '%02d' % hours
+                    time_string = time_string + ':%02d' % minutes
+                    time_string = time_string + ':%02d' % seconds
+                    time_string = time_string + '.000' # add microseconds
+
+                    end = "%03d" % key
+
+                    f.writelines(time_string + " " + end + "\n")
+                    seconds_count = seconds_count + chapter_data[key]
+                    f.flush()
                 break
 
+
             time.sleep(.1)
+
+    def load_chapters(self):
+
+        # replace blanks with underscores to fix breakage
+        underspaced_working_folder = self.working_folder.replace(" ", "_")
+        underspaced_book_folder_name = self.source_book_folder_name.replace(" ", "_")
+
+        # create working folder
+        os.mkdir(underspaced_working_folder)
+
+        # wait until files are ready
+        time.sleep(.1)
+
+        # move book and chapters to new folder
+        os.rename(self.working_folder + self.source_book_folder_name + ".m4b", underspaced_working_folder + underspaced_book_folder_name + ".m4b")
+        os.rename(self.working_folder + self.source_book_folder_name + ".chapters.txt", underspaced_working_folder + underspaced_book_folder_name + ".chapters.txt")
+
+         # add chapters
+        command_line = "mp4chaps -i " + underspaced_working_folder + underspaced_book_folder_name + ".m4b"
+        os.system(command_line)
+
+        # rename back to original names
+        os.rename(underspaced_working_folder + underspaced_book_folder_name + ".m4b", self.working_folder + self.source_book_folder_name + ".m4b")
+        os.rename(underspaced_working_folder + underspaced_book_folder_name + ".chapters.txt", self.working_folder + self.source_book_folder_name + ".chapters.txt")
+
+        # start cleanup
+        os.rmdir(underspaced_working_folder)
 
     def copy_files_to_working_folder(self, extension):
         # for each aac file in source folder, copy to working folder
@@ -307,7 +373,7 @@ class Audiobook:
 
         # set minimal tags
         mp4_info['\xa9ART'] = self.author
-        mp4_info['\xa9alb'] = self.title
+        mp4_info['\xa9alb'] = self.book_name
 
         mp4_info.save()
 
@@ -356,11 +422,13 @@ class Audiobook:
 
         mp4_info.save()
 
+
     def move_completed_encode_to_output_folder(self):
         shutil.move(self.working_folder + self.source_book_folder_name + '.m4b', self.output_folder)
 
     def clear_working_folder(self):
         shutil.rmtree(self.working_folder)
+
 
 
 

@@ -40,7 +40,7 @@ for entry in os.listdir(input_folder):
     audiobook = Audiobook(author_name, book_name, source_folder, working_folder, output_folder, archive_folder, threadsToManage)
 
     # create working folder
-    audiobook.create_working_folder()
+    audiobook.recode_to_mp3()
 
     source_type = audiobook.determine_source_type()
     print(source_type)
@@ -52,8 +52,13 @@ for entry in os.listdir(input_folder):
         # encode all mp3 files in source folder to aac
         audiobook.encode_mp3_files_in_source_folder(bitrate)
 
+        # pull chapter lengths from source mp3s
+        # audiobook.mp3_extract_chapter_metadata()
+
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
+
+        audiobook.load_chapters()
 
     elif source_type == audiobook.source_type_mp3_multi_folder:
         # copy all mp3 files to new single folder structure in working folder
@@ -67,6 +72,8 @@ for entry in os.listdir(input_folder):
 
         # combine all aac files in working folder to m4b
         audiobook.merge_aac_files_in_working_folder_into_m4b()
+
+        audiobook.load_chapters()
 
     elif source_type == audiobook.source_type_aac_single_folder:
         # WARNING - ONLY WORKS IF ALL SOURCE FILES HAVE SAME BITRATE

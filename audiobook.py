@@ -39,16 +39,6 @@ class Audiobook:
         os.makedirs(self.working_folder + self.source_book_folder_name)
         self.working_folder = self.working_folder + self.source_book_folder_name + '/'
 
-    def prepare_mp3_multi_folder_source_for_encoding(self):
-        # TODO copy all mp3 files into working folder prefixed with the name of their folder
-        subfolders = self.get_subfolders_in_source_folder()
-        # for each subfolder in subfolders:
-            # move files up a level prefixed with the folder name
-
-    def get_subfolders_in_source_folder(self):
-        return [name for name in os.listdir(self.source_folder)
-                if os.path.isdir(os.path.join(self.source_folder, name))]
-
     def determine_source_type(self):
 
         aac_file_counter = len(fnmatch.filter(os.listdir(self.source_folder), '*.aac'))
@@ -234,34 +224,9 @@ class Audiobook:
 
     def load_chapters(self):
 
-        # replace blanks with underscores to fix breakage
-        underspaced_working_folder = self.working_folder.replace(" ", "_")
-        underspaced_working_folder = underspaced_working_folder.replace("(", "_")
-        underspaced_working_folder = underspaced_working_folder.replace(")", "_")
-        underspaced_book_folder_name = self.source_book_folder_name.replace(" ", "_")
-        underspaced_book_folder_name = underspaced_book_folder_name.replace("(", "_")
-        underspaced_book_folder_name = underspaced_book_folder_name.replace(")", "_")
-
-        # create working folder
-        os.mkdir(underspaced_working_folder)
-
-        # wait until files are ready
-        time.sleep(.1)
-
-        # move book and chapters to new folder
-        os.rename(self.working_folder + self.source_book_folder_name + ".m4b", underspaced_working_folder + underspaced_book_folder_name + ".m4b")
-        os.rename(self.working_folder + self.source_book_folder_name + ".chapters.txt", underspaced_working_folder + underspaced_book_folder_name + ".chapters.txt")
-
-         # add chapters
-        command_line = "mp4chaps -i " + underspaced_working_folder + underspaced_book_folder_name + ".m4b"
+        # add chapters
+        command_line = 'mp4chaps -i "' + self.working_folder + self.source_book_folder_name + '.m4b"'
         os.system(command_line)
-
-        # rename back to original names
-        os.rename(underspaced_working_folder + underspaced_book_folder_name + ".m4b", self.working_folder + self.source_book_folder_name + ".m4b")
-        os.rename(underspaced_working_folder + underspaced_book_folder_name + ".chapters.txt", self.working_folder + self.source_book_folder_name + ".chapters.txt")
-
-        # start cleanup
-        os.rmdir(underspaced_working_folder)
 
     def copy_files_to_working_folder(self, extension):
         # for each aac file in source folder, copy to working folder

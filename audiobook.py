@@ -236,7 +236,11 @@ class Audiobook:
 
         # replace blanks with underscores to fix breakage
         underspaced_working_folder = self.working_folder.replace(" ", "_")
+        underspaced_working_folder = underspaced_working_folder.replace("(", "_")
+        underspaced_working_folder = underspaced_working_folder.replace(")", "_")
         underspaced_book_folder_name = self.source_book_folder_name.replace(" ", "_")
+        underspaced_book_folder_name = underspaced_book_folder_name.replace("(", "_")
+        underspaced_book_folder_name = underspaced_book_folder_name.replace(")", "_")
 
         # create working folder
         os.mkdir(underspaced_working_folder)

@@ -102,11 +102,13 @@ class Audiobook:
         file_extract_iterator = 0
         while file_extract_iterator < file_counter:
             file_extract_iterator += 1
+            outputfilename = "outputfile%03d." % file_extract_iterator + 'aac'
             extract_commandline = 'ffmpeg -i ' + '"' + self.working_folder + "outputfile%03d." % file_extract_iterator \
                                   + extension + '"' + ' -acodec copy "' + self.working_folder \
-                                  + "outputfile%03d." % file_extract_iterator + 'aac"'
+                                  + outputfilename + '"'
+            print(extract_commandline)
             args = shlex.split(extract_commandline)
-            subprocess.run(args, Shell=True, Check=True)
+            subprocess.call(args)
 
     def encode_mp3_files_in_source_folder(self, bitrate):
         self.encode_mp3_files_in_folder(self.source_folder, bitrate)

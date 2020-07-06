@@ -13,16 +13,18 @@ import subprocess
 import sys
 import time
 import datetime
+import mutagen
 
 class Audiobook:
 
-    def __init__(self, author_name, book_name, source_folder, working_folder, output_folder, archive_folder, threadsToManage):
+    def __init__(self, author_name, book_name, source_folder, working_folder, output_folder, archive_folder, error_folder, threadsToManage):
         self.author_name = author_name
         self.book_name = book_name
         self.source_folder = source_folder
         self.working_folder = working_folder
         self.output_folder = output_folder
         self.archive_folder = archive_folder
+        self.error_folder = error_folder
         self.threads_to_manage = threadsToManage
         self.source_book_folder_name = self.author_name + ' - ' + self.book_name
 
@@ -35,7 +37,7 @@ class Audiobook:
         self.author = self.author_name
         self.book = self.book_name
 
-    def recode_to_mp3(self):
+    def create_working_folder(self):
         os.makedirs(self.working_folder + self.source_book_folder_name)
         self.working_folder = self.working_folder + self.source_book_folder_name + '/'
 
@@ -129,6 +131,7 @@ class Audiobook:
         encode_counter = 0
         encodes_in_progress = 0
         reference_to_popens = {}
+        skip_chapters = False
 
         while True:
 
@@ -169,8 +172,12 @@ class Audiobook:
                         encode_counter += 1
 
                         # extract track length for chapter lengths
-                        mp3_info = MP3(parent_folder + filename)
-                        chapter_data[encode_counter] = mp3_info.info.length
+                        if not skip_chapters:
+                            try:
+                                mp3_info = MP3(parent_folder + filename)
+                                chapter_data[encode_counter] = mp3_info.info.length
+                            except mutagen.mp3.HeaderNotFoundError:
+                                skip_chapters = True
 
                         # start encode
                         output_filename = self.working_folder + "outputfile%03d.aac" % encode_counter
@@ -192,37 +199,47 @@ class Audiobook:
                         files_complete += 1
 
             if files_complete >= files_counter:
-                # write the chapters file
-                first_space = self.working_folder.find(" ")
-                chapter_file_name = self.working_folder + self.source_book_folder_name + ".chapters.txt"
-                f = open(chapter_file_name, "w+")
+                if not skip_chapters:
+                    # write the chapters file
+                    first_space = self.working_folder.find(" ")
+                    chapter_file_name = self.working_folder + self.source_book_folder_name + ".chapters.txt"
+                    f = open(chapter_file_name, "w+")
 
-                seconds_count = 0.0
-                for key in chapter_data:
+                    seconds_count = 0.0
+                    for key in chapter_data:
 
-                    # build time string
-                    seconds = seconds_count % 60
-                    seconds_working = seconds_count - seconds
-                    minutes = (seconds_working // 60) % 60
-                    seconds_working = seconds_working - (minutes * 60)
-                    hours = (seconds_working // 3600)
-                    seconds_working = seconds_working - (hours * 3600)
+                        seconds = 0
+                        minutes = 0
+                        hours = 0
 
-                    time_string = ""
-                    time_string = time_string + '%02d' % hours
-                    time_string = time_string + ':%02d' % minutes
-                    time_string = time_string + ':%02d' % seconds
-                    time_string = time_string + '.000' # add microseconds
+                        # build time string
+                        if seconds_count == 0.0:
+                            seconds = 0
+                            minutes = 0
+                            hours = 0
+                        else:
+                            seconds = seconds_count % 60
+                            seconds_working = seconds_count - seconds
+                            minutes = (seconds_working // 60) % 60
+                            seconds_working = seconds_working - (minutes * 60)
+                            hours = (seconds_working // 3600)
+                            seconds_working = seconds_working - (hours * 3600)
 
-                    end = "%03d" % key
+                        time_string = ""
+                        time_string = time_string + '%02d' % hours
+                        time_string = time_string + ':%02d' % minutes
+                        time_string = time_string + ':%02d' % seconds
+                        time_string = time_string + '.000' # add microseconds
 
-                    f.writelines(time_string + " " + end + "\n")
-                    seconds_count = seconds_count + chapter_data[key]
-                    f.flush()
+                        end = "%03d" % key
+
+                        f.writelines(time_string + " " + end + "\n")
+                        seconds_count = seconds_count + chapter_data[key]
+                        f.flush()
                 break
 
-
             time.sleep(.1)
+        return not skip_chapters
 
     def load_chapters(self):
 
@@ -318,11 +335,7 @@ class Audiobook:
             elif input_freq > 44000:
                 bitrate = "48k"
             elif input_channels > 1 and input_freq > 22000:
-                bitrate = "32k"
-            elif input_freq > 22000:
-                bitrate = "32k"
-            elif input_channels > 1:
-                bitrate = "32k"
+                bitrate = "48k"
             else:
                 bitrate = "32k"
 
@@ -380,6 +393,17 @@ class Audiobook:
                     cover_file = self.source_folder + book_folder_file
                     break
 
+        # look inside the source mp3 files for a cover image
+        if cover_type == "none":
+            book_folder_file_list = os.listdir(self.source_folder)
+
+            for book_folder_file in book_folder_file_list:
+                if book_folder_file.endswith(".mp3"):
+                    #TODO implement extracting image from mp3
+                    break
+
+
+
         if cover_type != "none":
             with open(cover_file, "rb") as f:
                 if cover_type == "jpg":
@@ -400,6 +424,8 @@ class Audiobook:
     def clear_working_folder(self):
         shutil.rmtree(self.working_folder)
 
+    def error_handle_mutagenmp3headernotfound(self):
+        shutil.move(self.source_folder, self.error_folder)
 
 
 
